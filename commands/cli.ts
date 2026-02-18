@@ -40,32 +40,44 @@ function copyAsset(assetName: string, destPath: string): boolean {
 function patchConfig(config: Record<string, any>): string[] {
 	const changes: string[] = []
 
-	// 1. agents.list — add researcher
 	if (!config.agents) config.agents = {}
 	if (!config.agents.list) config.agents.list = []
 
-	const existingAgent = config.agents.list.find((a: any) => a.id === "researcher")
-	if (!existingAgent) {
+	// 1. agents.list — add researcher agent
+	const existingResearcher = config.agents.list.find((a: any) => a.id === "researcher")
+	if (!existingResearcher) {
 		config.agents.list.push({
 			id: "researcher",
 			workspace: WORKSPACE_RESEARCHER,
-			bootstrapMaxChars: 40000,
 			subagents: { allowAgents: [] },
 		})
 		changes.push("agents.list: added researcher agent")
 	}
 
-	// 2. allowAgents — add "researcher" to defaults
-	if (!config.agents.defaults) config.agents.defaults = {}
-	if (!config.agents.defaults.subagents) config.agents.defaults.subagents = {}
-	const allowAgents: string[] = config.agents.defaults.subagents.allowAgents || []
-	if (!allowAgents.includes("researcher")) {
-		allowAgents.push("researcher")
-		config.agents.defaults.subagents.allowAgents = allowAgents
-		changes.push('agents.defaults.subagents.allowAgents: added "researcher"')
+	// 2. agents.list — ensure default agent has allowAgents: ["researcher"]
+	let defaultAgent = config.agents.list.find((a: any) => a.default === true || a.id === "default")
+	if (!defaultAgent) {
+		defaultAgent = { id: "default", default: true, subagents: { allowAgents: ["researcher"] } }
+		config.agents.list.unshift(defaultAgent)
+		changes.push('agents.list: added default agent with allowAgents: ["researcher"]')
+	} else {
+		if (!defaultAgent.subagents) defaultAgent.subagents = {}
+		const allow: string[] = defaultAgent.subagents.allowAgents || []
+		if (!allow.includes("researcher")) {
+			allow.push("researcher")
+			defaultAgent.subagents.allowAgents = allow
+			changes.push('agents.list[default].subagents.allowAgents: added "researcher"')
+		}
 	}
 
-	// 3. exec in subagent tools allow
+	// 3. bootstrapMaxChars in agents.defaults (global, for researcher's 26K prompt)
+	if (!config.agents.defaults) config.agents.defaults = {}
+	if (!config.agents.defaults.bootstrapMaxChars || config.agents.defaults.bootstrapMaxChars < 40000) {
+		config.agents.defaults.bootstrapMaxChars = 40000
+		changes.push("agents.defaults.bootstrapMaxChars: set to 40000")
+	}
+
+	// 4. exec in subagent tools allow
 	if (!config.tools) config.tools = {}
 	if (!config.tools.subagents) config.tools.subagents = {}
 	if (!config.tools.subagents.tools) config.tools.subagents.tools = {}
