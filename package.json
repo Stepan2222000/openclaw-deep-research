@@ -1,0 +1,13 @@
+{
+  "name": "openclaw-deep-research",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Autonomous deep research with sub-agents",
+  "main": "index.ts",
+  "openclaw": {
+    "extensions": ["./index.ts"]
+  },
+  "peerDependencies": {
+    "openclaw": "*"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "id": "openclaw-deep-research",
+  "kind": "general",
+  "uiHints": {},
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {},
+    "required": []
+  }
+}
