@@ -102,9 +102,9 @@ export default {
 			},
 		})
 
-		// Slash command: /research-status
+		// Slash command: /research_status
 		api.registerCommand({
-			name: "research-status",
+			name: "research_status",
 			description: "Check status of active researches",
 			handler: async (args: string, ctx: Record<string, unknown>) => {
 				try {

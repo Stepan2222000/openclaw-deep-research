@@ -201,7 +201,8 @@ export function registerSetupCli(api: OpenClawPluginApi): void {
 					// Check config
 					const config = readConfig()
 					const hasAgent = config.agents?.list?.some((a: any) => a.id === "researcher")
-					const hasAllow = config.agents?.defaults?.subagents?.allowAgents?.includes("researcher")
+					const defaultAgent = config.agents?.list?.find((a: any) => a.default === true || a.id === "default")
+					const hasAllow = defaultAgent?.subagents?.allowAgents?.includes("researcher")
 					const hasExec = config.tools?.subagents?.tools?.allow?.includes("exec")
 					const hasPlugin = !!config.plugins?.entries?.["openclaw-deep-research"]
 
