@@ -6,7 +6,7 @@ OpenClaw plugin for autonomous deep research with sub-agents.
 
 - **Researcher sub-agent** with full tool documentation (Exa, ScrapFly, agent-browser, Brave Search, web_fetch, Ref) — delivered via dedicated workspace
 - **Coordinator skill** (SKILL.md) — instructions for the main agent on how to manage research sessions
-- **Plugin hooks** — dynamic context injection, automatic INDEX.md updates, Supermemory capture blocking
+- **Plugin hooks** — dynamic context injection, automatic INDEX.md updates
 - **Slash commands** — `/research`, `/research-status`
 - **CLI** — `openclaw deep-research setup/status/update-prompt`
 
@@ -21,7 +21,7 @@ User → Coordinator (reads SKILL.md) → sessions_spawn(agentId: "researcher")
                                     Researcher sub-agent works
                                     (Exa, ScrapFly, agent-browser, etc.)
                                            ↓
-                            Plugin hook: agent_end → update INDEX.md, block capture
+                            Plugin hook: agent_end → update INDEX.md
 ```
 
 ## Installation
@@ -41,7 +41,6 @@ This will:
 - Install SKILL.md to `workspace/skills/deep-research/`
 - Create researcher workspace with AGENTS.md prompt
 - Patch `openclaw.json` (agents.list, allowAgents, exec)
-- Patch Supermemory capture (block capture for researcher)
 - Create INDEX.md if missing
 
 3. Restart OpenClaw:
@@ -86,7 +85,6 @@ openclaw-deep-research/
 │   ├── index-manager.ts       # INDEX.md CRUD
 │   └── templates.ts           # Research file templates
 └── scripts/
-    └── patch-supermemory.sh   # Standalone Supermemory patch
 ```
 
 ## Tools available to researcher

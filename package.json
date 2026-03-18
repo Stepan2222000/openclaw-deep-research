@@ -3,11 +3,10 @@
   "version": "0.1.0",
   "type": "module",
   "description": "Autonomous deep research with sub-agents",
-  "main": "index.ts",
   "openclaw": {
     "extensions": ["./index.ts"]
   },
   "peerDependencies": {
-    "openclaw": "*"
+    "openclaw": ">=2026.1.29"
   }
 }

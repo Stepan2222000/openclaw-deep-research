@@ -1,5 +1,7 @@
 {
   "id": "openclaw-deep-research",
+  "name": "Deep Research",
+  "description": "Autonomous deep research with sub-agents",
   "kind": "general",
   "uiHints": {},
   "configSchema": {

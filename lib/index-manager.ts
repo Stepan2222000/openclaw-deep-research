@@ -1,7 +1,9 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs"
+import { homedir } from "node:os"
 
-const INDEX_PATH = "/root/.openclaw/workspace/memory/research/INDEX.md"
-const RESEARCH_BASE = "/root/.openclaw/workspace/memory/research"
+const OPENCLAW_DIR = `${homedir()}/.openclaw`
+const INDEX_PATH = `${OPENCLAW_DIR}/workspace/memory/research/INDEX.md`
+const RESEARCH_BASE = `${OPENCLAW_DIR}/workspace/memory/research`
 
 export interface IndexEntry {
 	slug: string
