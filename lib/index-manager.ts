@@ -1,9 +1,7 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs"
-import { homedir } from "node:os"
 
-const OPENCLAW_DIR = `${homedir()}/.openclaw`
-const INDEX_PATH = `${OPENCLAW_DIR}/workspace/memory/research/INDEX.md`
-const RESEARCH_BASE = `${OPENCLAW_DIR}/workspace/memory/research`
+const INDEX_PATH = "/root/another-openclaw/research/INDEX.md"
+const RESEARCH_BASE = "/root/another-openclaw/research"
 
 export interface IndexEntry {
 	slug: string
@@ -11,6 +9,7 @@ export interface IndexEntry {
 	status: string
 	summary: string
 	path: string
+	session: string
 }
 
 /**
@@ -19,7 +18,8 @@ export interface IndexEntry {
  * - **Дата:** 2026-02-15
  * - **Статус:** завершён
  * - **Сводка:** Short summary text
- * - **Путь:** `memory/research/slug-name/`
+ * - **Путь:** `research/slug-name/`
+ * - **Session:** agent:researcher:subagent:abc-123
  */
 export function readIndexEntries(): IndexEntry[] {
 	if (!existsSync(INDEX_PATH)) return []
@@ -39,7 +39,8 @@ export function readIndexEntries(): IndexEntry[] {
 			date: "",
 			status: "",
 			summary: "—",
-			path: `memory/research/${slug}/`,
+			path: `research/${slug}/`,
+			session: "",
 		}
 
 		for (const line of lines) {
@@ -54,6 +55,9 @@ export function readIndexEntries(): IndexEntry[] {
 
 			const pathMatch = line.match(/\*\*Путь:\*\*\s*`?([^`]+)`?/)
 			if (pathMatch) entry.path = pathMatch[1].trim()
+
+			const sessionMatch = line.match(/\*\*Session:\*\*\s*(.+)/)
+			if (sessionMatch) entry.session = sessionMatch[1].trim()
 		}
 
 		if (entry.date) {
@@ -67,10 +71,13 @@ function writeIndex(entries: IndexEntry[]): void {
 	const dir = INDEX_PATH.substring(0, INDEX_PATH.lastIndexOf("/"))
 	if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
 
-	const sections = entries.map(
-		(e) =>
-			`## ${e.slug}\n- **Дата:** ${e.date}\n- **Статус:** ${e.status}\n- **Сводка:** ${e.summary}\n- **Путь:** \`${e.path}\``,
-	)
+	const sections = entries.map((e) => {
+		let section = `## ${e.slug}\n- **Дата:** ${e.date}\n- **Статус:** ${e.status}\n- **Сводка:** ${e.summary}\n- **Путь:** \`${e.path}\``
+		if (e.session) {
+			section += `\n- **Session:** ${e.session}`
+		}
+		return section
+	})
 	const date = new Date().toISOString().split("T")[0]
 	const content = `# Research Index\n\nАвтоматически обновляемый индекс исследований.\nПоследнее обновление: ${date}\n\n---\n\n${sections.join("\n\n")}\n`
 	writeFileSync(INDEX_PATH, content, "utf-8")
@@ -79,17 +86,18 @@ function writeIndex(entries: IndexEntry[]): void {
 export function addEntry(slug: string, status: string, summary: string): void {
 	const entries = readIndexEntries()
 	const date = new Date().toISOString().split("T")[0]
-	const path = `memory/research/${slug}/`
-	entries.push({ slug, date, status, summary, path })
+	const path = `research/${slug}/`
+	entries.push({ slug, date, status, summary, path, session: "" })
 	writeIndex(entries)
 }
 
-export function updateEntry(slug: string, updates: Partial<Pick<IndexEntry, "status" | "summary">>): void {
+export function updateEntry(slug: string, updates: Partial<Pick<IndexEntry, "status" | "summary" | "session">>): void {
 	const entries = readIndexEntries()
 	const entry = entries.find((e) => e.slug === slug)
 	if (!entry) return
 	if (updates.status) entry.status = updates.status
 	if (updates.summary) entry.summary = updates.summary
+	if (updates.session) entry.session = updates.session
 	writeIndex(entries)
 }
 

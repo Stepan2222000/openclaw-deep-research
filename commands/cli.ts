@@ -19,7 +19,7 @@ const WORKSPACE_RESEARCHER = `${OPENCLAW_DIR}/workspace-researcher`
 const SKILL_DIR = `${OPENCLAW_DIR}/workspace/skills/deep-research`
 // Путь к самому плагину (вычисляется из текущего файла — поднимаемся на 2 уровня вверх)
 const PLUGIN_DIR = path.dirname(path.dirname(new URL(import.meta.url).pathname))
-// Папка assets внутри плагина — тут лежат SKILL.md и researcher-prompt.md
+// Папка assets внутри плагина — тут лежат SKILL.md, base-prompt.md, tools/, cascades.md
 const ASSETS_DIR = `${PLUGIN_DIR}/assets`
 
 
@@ -88,21 +88,17 @@ function patchConfig(config: Record<string, any>): string[] {
 
 	// --- 2. Разрешаем дефолтному агенту запускать researcher ---
 	// Без этого главный агент не сможет вызвать sessions_spawn с agentId: "researcher"
-	let defaultAgent = config.agents.list.find((a: any) => a.default === true || a.id === "default")
+	const defaultAgent = config.agents.list.find((a: any) => a.default === true || a.id === "default")
 	if (!defaultAgent) {
-		// Дефолтного агента нет — создаём его с правом запускать researcher
-		defaultAgent = { id: "default", default: true, subagents: { allowAgents: ["researcher"] } }
-		config.agents.list.unshift(defaultAgent)
-		changes.push('agents.list: added default agent with allowAgents: ["researcher"]')
-	} else {
-		// Дефолтный агент есть — добавляем "researcher" в его allowAgents если ещё нет
-		if (!defaultAgent.subagents) defaultAgent.subagents = {}
-		const allow: string[] = defaultAgent.subagents.allowAgents || []
-		if (!allow.includes("researcher")) {
-			allow.push("researcher")
-			defaultAgent.subagents.allowAgents = allow
-			changes.push('agents.list[default].subagents.allowAgents: added "researcher"')
-		}
+		throw new Error("Default agent not found in agents.list. OpenClaw must have a default agent configured.")
+	}
+	// Добавляем "researcher" в allowAgents если ещё нет
+	if (!defaultAgent.subagents) defaultAgent.subagents = {}
+	const allow: string[] = defaultAgent.subagents.allowAgents || []
+	if (!allow.includes("researcher")) {
+		allow.push("researcher")
+		defaultAgent.subagents.allowAgents = allow
+		changes.push('agents.list[default].subagents.allowAgents: added "researcher"')
 	}
 
 	// --- 3. Увеличиваем лимит символов для промпта агента ---
@@ -111,6 +107,14 @@ function patchConfig(config: Record<string, any>): string[] {
 	if (!config.agents.defaults.bootstrapMaxChars || config.agents.defaults.bootstrapMaxChars < 40000) {
 		config.agents.defaults.bootstrapMaxChars = 40000
 		changes.push("agents.defaults.bootstrapMaxChars: set to 40000")
+	}
+
+	// --- 3.5. Отключаем автоархивацию сессий субагентов ---
+	// Нужно для продолжения ресёрчей через sessions_send
+	if (!config.agents.defaults.subagents) config.agents.defaults.subagents = {}
+	if (config.agents.defaults.subagents.archiveAfterMinutes !== 0) {
+		config.agents.defaults.subagents.archiveAfterMinutes = 0
+		changes.push("agents.defaults.subagents.archiveAfterMinutes: set to 0")
 	}
 
 	// --- 4. Разрешаем субагентам использовать инструмент exec ---
@@ -170,17 +174,17 @@ export function registerSetupCli(api: OpenClawPluginApi): void {
 						console.log(`  ✓ SKILL.md → ${SKILL_DIR}/`)
 					}
 
-					// Шаг 2: Создаём рабочую директорию researcher-а и копируем его промпт
-					// AGENTS.md — главная инструкция для субагента-researcher
-					// TOOLS.md — описание инструментов (ссылается на AGENTS.md)
+					// Шаг 2: Создаём рабочую директорию researcher-а
+					// Промпт собирается динамически плагином через before_prompt_build хук.
+					// AGENTS.md содержит минимальную заглушку.
 					console.log("\nInstalling researcher workspace...")
 					if (!fs.existsSync(WORKSPACE_RESEARCHER)) {
 						fs.mkdirSync(WORKSPACE_RESEARCHER, { recursive: true })
 					}
-					if (copyAsset("researcher-prompt.md", `${WORKSPACE_RESEARCHER}/AGENTS.md`)) {
-						console.log(`  ✓ AGENTS.md → ${WORKSPACE_RESEARCHER}/`)
-					}
-					const toolsMd = "# Tools\n\nВсе инструменты и их документация описаны в AGENTS.md.\n"
+					const agentsMd = "# Deep Research Worker\n\nПромпт собирается динамически плагином openclaw-deep-research.\n"
+					fs.writeFileSync(`${WORKSPACE_RESEARCHER}/AGENTS.md`, agentsMd, "utf-8")
+					console.log(`  ✓ AGENTS.md → ${WORKSPACE_RESEARCHER}/`)
+					const toolsMd = "# Tools\n\nИнструменты настраиваются через конфиг плагина.\n"
 					fs.writeFileSync(`${WORKSPACE_RESEARCHER}/TOOLS.md`, toolsMd, "utf-8")
 					console.log(`  ✓ TOOLS.md → ${WORKSPACE_RESEARCHER}/`)
 
@@ -197,7 +201,7 @@ export function registerSetupCli(api: OpenClawPluginApi): void {
 
 					// Шаг 4: Создаём INDEX.md если его ещё нет
 					// INDEX.md — реестр всех исследований (статус, дата, путь)
-					const indexPath = `${OPENCLAW_DIR}/workspace/memory/research/INDEX.md`
+					const indexPath = `/root/another-openclaw/research/INDEX.md`
 					if (!fs.existsSync(indexPath)) {
 						console.log("\nCreating INDEX.md...")
 						const indexDir = path.dirname(indexPath)
@@ -246,7 +250,7 @@ export function registerSetupCli(api: OpenClawPluginApi): void {
 						[`${SKILL_DIR}/SKILL.md`, "Skill (SKILL.md)"],
 						[`${WORKSPACE_RESEARCHER}/AGENTS.md`, "Researcher prompt (AGENTS.md)"],
 						[`${WORKSPACE_RESEARCHER}/TOOLS.md`, "Researcher TOOLS.md"],
-						[`${OPENCLAW_DIR}/workspace/memory/research/INDEX.md`, "INDEX.md"],
+						[`/root/another-openclaw/research/INDEX.md`, "INDEX.md"],
 					]
 					for (const [p, label] of files) {
 						const exists = fs.existsSync(p)
@@ -258,20 +262,19 @@ export function registerSetupCli(api: OpenClawPluginApi): void {
 
 			// --------------------------------------------------
 			// ПОДКОМАНДА: update-prompt
-			// Обновляет промпты из assets плагина (если вышла новая версия).
-			// Перезаписывает AGENTS.md и SKILL.md свежими копиями.
+			// Обновляет SKILL.md из assets плагина.
+			// Промпт researcher-а собирается динамически — обновлять не нужно,
+			// достаточно git pull и рестарт Gateway.
 			// --------------------------------------------------
 			cmd
 				.command("update-prompt")
-				.description("Update researcher prompt from plugin assets")
+				.description("Update SKILL.md from plugin assets")
 				.action(async () => {
-					console.log("\nUpdating researcher prompt...")
-					if (copyAsset("researcher-prompt.md", `${WORKSPACE_RESEARCHER}/AGENTS.md`)) {
-						console.log(`  ✓ AGENTS.md updated`)
-					}
+					console.log("\nUpdating prompts...")
 					if (copyAsset("SKILL.md", `${SKILL_DIR}/SKILL.md`)) {
 						console.log(`  ✓ SKILL.md updated`)
 					}
+					console.log("  Researcher prompt собирается динамически — обновится при рестарте Gateway.")
 					console.log("")
 				})
 		},

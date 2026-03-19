@@ -1,7 +1,5 @@
 // Импортируем тип API плагина из OpenClaw SDK
 import type { OpenClawPluginApi } from "openclaw/plugin-sdk/core"
-// Функция для определения домашней директории пользователя (~/)
-import { homedir } from "node:os"
 
 // Импорт наших модулей:
 // - registerSetupCli: регистрирует CLI-команды (openclaw deep-research setup/status/...)
@@ -12,6 +10,8 @@ import { updateIndexOnComplete } from "./lib/index-manager.ts"
 // - readProgress: читает progress.md и парсит записи прогресса
 // - findUnackedCommands: ищет команды в progress.md на которые агент не ответил
 import { buildBrief, readProgress, findUnackedCommands } from "./lib/coordinator.ts"
+// - buildResearcherPrompt: собирает промпт researcher-а из блоков на основе конфига
+import { buildResearcherPrompt } from "./lib/prompt-builder.ts"
 
 // ========================================
 // Главный экспорт плагина
@@ -45,20 +45,27 @@ export default {
 		// --------------------------------------------------
 		// 2. ХУК: ПЕРЕД ПОСТРОЕНИЕМ ПРОМПТА
 		// Срабатывает каждый раз перед запуском любого агента.
-		// Мы проверяем — если это наш агент "researcher",
-		// то добавляем ему в начало промпта текущую дату.
-		// Для всех остальных агентов — просто выходим (return без значения).
+		// Если это наш агент "researcher" — собираем полный промпт
+		// из блоков на основе конфига (какие инструменты включены).
+		// Для всех остальных агентов — пропускаем.
 		// --------------------------------------------------
 		api.on("before_prompt_build", async (event: any, ctx: any) => {
 			// Не наш агент — пропускаем
 			if (ctx?.agentId !== "researcher") return
 
-			// Формируем строку с текущей датой
+			// Читаем конфиг плагина — какие инструменты включены
+			const pluginCfg = api.pluginConfig as any
+			const toolsConfig = pluginCfg?.tools
+
+			// Собираем промпт из блоков (base + включённые инструменты + каскады)
+			const researcherPrompt = buildResearcherPrompt(toolsConfig)
+
+			// Добавляем дату в начало
 			const date = new Date().toISOString().split("T")[0]
-			const dynamicCtx = `<research-runtime>\nDate: ${date}\n</research-runtime>`
+			const fullContext = `<research-runtime>\nDate: ${date}\n</research-runtime>\n\n${researcherPrompt}`
 
 			// prependContext — OpenClaw вставит этот текст в начало промпта агента
-			return { prependContext: dynamicCtx }
+			return { prependContext: fullContext }
 		})
 
 		// --------------------------------------------------
@@ -133,9 +140,8 @@ export default {
 				const date = new Date().toISOString().split("T")[0]
 
 				// Пути к файлам исследования
-				const openclawDir = `${homedir()}/.openclaw`
-				const researchDir = `${openclawDir}/workspace/memory/research/${slug}`
-				const experiencePath = `${openclawDir}/workspace/research/experience/${slug}.md`
+				const researchDir = `/root/another-openclaw/research/${slug}`
+				const experienceDir = `/root/another-openclaw/experience/`
 
 				// Создаём brief — шаблон задания для исследования
 				const brief = buildBrief(topic)
@@ -148,7 +154,7 @@ export default {
 						"",
 						`**Slug:** ${slug}`,
 						`**Dir:** ${researchDir}`,
-						`**Model:** agents.defaults.subagents (openai-codex/gpt-5.3-codex, thinking: xhigh)`,
+						`**Model:** gpt-5.4, thinking: xhigh`,
 						"",
 						"**Brief:**",
 						brief,
@@ -168,7 +174,7 @@ export default {
 						`sessions_spawn(`,
 						`  task: "<задание с темой, brief, путями, режимом extraction>",`,
 						`  agentId: "researcher",`,
-						`  model: "openai-codex/gpt-5.3-codex",`,
+						`  model: "gpt-5.4",`,
 						`  thinking: "xhigh",`,
 						`  label: "research-${slug}",`,
 						`  cleanup: "keep",`,
@@ -212,7 +218,7 @@ export default {
 
 						try {
 							// Читаем progress.md этого исследования
-							const progressEntries = await readProgress(`${homedir()}/.openclaw/workspace/${entry.path}`)
+							const progressEntries = await readProgress(`/root/another-openclaw/${entry.path}`)
 							// Показываем последнюю запись прогресса
 							const last = progressEntries[progressEntries.length - 1]
 							if (last) {
