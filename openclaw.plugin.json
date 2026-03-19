@@ -3,6 +3,7 @@
   "name": "Deep Research",
   "description": "Autonomous deep research with sub-agents",
   "kind": "general",
+  "skills": ["./skills"],
   "configSchema": {
     "type": "object",
     "additionalProperties": false,

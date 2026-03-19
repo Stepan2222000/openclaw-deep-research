@@ -16,12 +16,10 @@ const OPENCLAW_DIR = `${homedir()}/.openclaw`
 const CONFIG_PATH = `${OPENCLAW_DIR}/openclaw.json`
 // Рабочая директория субагента-researcher (его AGENTS.md и TOOLS.md лежат тут)
 const WORKSPACE_RESEARCHER = `${OPENCLAW_DIR}/workspace-researcher`
-// Папка скилла — сюда копируется SKILL.md (инструкция для главного агента)
-const SKILL_DIR = `${OPENCLAW_DIR}/workspace/skills/deep-research`
 // Путь к самому плагину (вычисляется из текущего файла — поднимаемся на 2 уровня вверх)
 const PLUGIN_DIR = path.dirname(path.dirname(new URL(import.meta.url).pathname))
-// Папка assets внутри плагина — тут лежат SKILL.md, base-prompt.md, tools/, cascades.md
-const ASSETS_DIR = `${PLUGIN_DIR}/assets`
+// Канонический путь к coordinator skill — OpenClaw загрузит его по manifest.skills
+const PLUGIN_SKILL_PATH = `${PLUGIN_DIR}/skills/deep-research/SKILL.md`
 
 
 // ========================================
@@ -44,22 +42,6 @@ function writeConfig(config: Record<string, any>): void {
 	fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2), "utf-8")
 }
 
-// Копирует файл из assets плагина в указанное место
-// Создаёт папки если их нет. Возвращает true если скопировал, false если asset не найден.
-function copyAsset(assetName: string, destPath: string): boolean {
-	const src = `${ASSETS_DIR}/${assetName}`
-	if (!fs.existsSync(src)) {
-		console.log(`  ✗ Asset not found: ${src}`)
-		return false
-	}
-	const destDir = path.dirname(destPath)
-	if (!fs.existsSync(destDir)) {
-		fs.mkdirSync(destDir, { recursive: true })
-	}
-	fs.copyFileSync(src, destPath)
-	return true
-}
-
 // ========================================
 // ПАТЧ КОНФИГА openclaw.json
 // Добавляет всё необходимое для работы плагина.
@@ -72,6 +54,24 @@ function patchConfig(config: Record<string, any>): string[] {
 	// Создаём секции если их нет
 	if (!config.agents) config.agents = {}
 	if (!config.agents.list) config.agents.list = []
+	if (!config.plugins) config.plugins = {}
+	if (!config.plugins.entries) config.plugins.entries = {}
+
+	// --- 0. Гарантируем plugin entry ---
+	// setup должен включать плагин и давать стабильную точку для plugin config
+	let pluginEntry = config.plugins.entries["openclaw-deep-research"]
+	if (!pluginEntry) {
+		pluginEntry = { enabled: true, config: {} }
+		config.plugins.entries["openclaw-deep-research"] = pluginEntry
+		changes.push("plugins.entries: added openclaw-deep-research")
+	}
+	if (pluginEntry.enabled !== true) {
+		pluginEntry.enabled = true
+		changes.push("plugins.entries[openclaw-deep-research].enabled: set to true")
+	}
+	if (!pluginEntry.config) {
+		pluginEntry.config = {}
+	}
 
 	// --- 1. Добавляем агента "researcher" в список агентов ---
 	// Это субагент, который будет выполнять исследования автономно
@@ -95,10 +95,10 @@ function patchConfig(config: Record<string, any>): string[] {
 	}
 	// Добавляем "researcher" в allowAgents если ещё нет
 	if (!defaultAgent.subagents) defaultAgent.subagents = {}
-	const allow: string[] = defaultAgent.subagents.allowAgents || []
-	if (!allow.includes("researcher")) {
-		allow.push("researcher")
-		defaultAgent.subagents.allowAgents = allow
+	const allowedAgents: string[] = defaultAgent.subagents.allowAgents || []
+	if (!allowedAgents.includes("researcher")) {
+		allowedAgents.push("researcher")
+		defaultAgent.subagents.allowAgents = allowedAgents
 		changes.push('agents.list[default].subagents.allowAgents: added "researcher"')
 	}
 
@@ -123,10 +123,10 @@ function patchConfig(config: Record<string, any>): string[] {
 	if (!config.tools) config.tools = {}
 	if (!config.tools.subagents) config.tools.subagents = {}
 	if (!config.tools.subagents.tools) config.tools.subagents.tools = {}
-	const allow: string[] = config.tools.subagents.tools.allow || []
-	if (!allow.includes("exec")) {
-		allow.push("exec")
-		config.tools.subagents.tools.allow = allow
+	const allowedTools: string[] = config.tools.subagents.tools.allow || []
+	if (!allowedTools.includes("exec")) {
+		allowedTools.push("exec")
+		config.tools.subagents.tools.allow = allowedTools
 		changes.push('tools.subagents.tools.allow: added "exec"')
 	}
 
@@ -150,21 +150,22 @@ export function registerSetupCli(api: OpenClawPluginApi): void {
 
 			// --------------------------------------------------
 			// ПОДКОМАНДА: setup
-			// Полная установка плагина — копирует файлы, патчит конфиг.
+			// Полная установка плагина — собирает workspace researcher-а и патчит конфиг.
 			// Запускается один раз после установки плагина.
 			// --------------------------------------------------
 			cmd
 				.command("setup")
-				.description("Install deep research skill, workspace and configuration")
+				.description("Install deep research workspace and configuration")
 				.action(async () => {
 					console.log("\n🔬 Deep Research Setup\n")
 
-					// Шаг 1: Копируем SKILL.md (инструкция для главного агента)
-					// Главный агент читает этот файл чтобы знать как работать с /research
-					console.log("Installing skill...")
-					if (copyAsset("SKILL.md", `${SKILL_DIR}/SKILL.md`)) {
-						console.log(`  ✓ SKILL.md → ${SKILL_DIR}/`)
-					}
+					// Шаг 1: Читаем и патчим конфиг.
+					// Сначала гарантируем plugin entry, чтобы prompt собирался
+					// уже из актуального config.plugins.entries[pluginId].config.
+					console.log("Updating openclaw.json...")
+					const config = readConfig()
+					const changes = patchConfig(config)
+					const pluginCfg = config.plugins.entries["openclaw-deep-research"]?.config
 
 					// Шаг 2: Создаём рабочую директорию researcher-а и собираем промпт
 					// Промпт собирается из блоков (base + включённые инструменты + каскады)
@@ -173,8 +174,6 @@ export function registerSetupCli(api: OpenClawPluginApi): void {
 					if (!fs.existsSync(WORKSPACE_RESEARCHER)) {
 						fs.mkdirSync(WORKSPACE_RESEARCHER, { recursive: true })
 					}
-					// Читаем конфиг плагина для определения включённых инструментов
-					const pluginCfg = config.plugins?.entries?.["openclaw-deep-research"]?.config
 					const researcherPrompt = buildResearcherPrompt(pluginCfg?.tools)
 					fs.writeFileSync(`${WORKSPACE_RESEARCHER}/AGENTS.md`, researcherPrompt, "utf-8")
 					console.log(`  ✓ AGENTS.md → ${WORKSPACE_RESEARCHER}/ (${researcherPrompt.length} chars)`)
@@ -182,10 +181,7 @@ export function registerSetupCli(api: OpenClawPluginApi): void {
 					fs.writeFileSync(`${WORKSPACE_RESEARCHER}/TOOLS.md`, toolsMd, "utf-8")
 					console.log(`  ✓ TOOLS.md → ${WORKSPACE_RESEARCHER}/`)
 
-					// Шаг 3: Патчим openclaw.json — добавляем агента, права, лимиты
-					console.log("\nUpdating openclaw.json...")
-					const config = readConfig()
-					const changes = patchConfig(config)
+					// Шаг 3: Записываем патченный конфиг одним проходом
 					if (changes.length > 0) {
 						writeConfig(config)
 						for (const c of changes) console.log(`  ✓ ${c}`)
@@ -238,10 +234,10 @@ export function registerSetupCli(api: OpenClawPluginApi): void {
 					console.log(`    exec in allow-list:       ${hasExec ? "✓" : "✗"}`)
 					console.log(`    plugin entry:             ${hasPlugin ? "✓" : "✗"}`)
 
-					// Проверяем файлы: SKILL.md, AGENTS.md, TOOLS.md, INDEX.md
+					// Проверяем файлы: plugin skill, AGENTS.md, TOOLS.md, INDEX.md
 					console.log(`\n  Files:`)
 					const files = [
-						[`${SKILL_DIR}/SKILL.md`, "Skill (SKILL.md)"],
+						[PLUGIN_SKILL_PATH, "Plugin skill (skills/deep-research/SKILL.md)"],
 						[`${WORKSPACE_RESEARCHER}/AGENTS.md`, "Researcher prompt (AGENTS.md)"],
 						[`${WORKSPACE_RESEARCHER}/TOOLS.md`, "Researcher TOOLS.md"],
 						[`/root/another-openclaw/research/INDEX.md`, "INDEX.md"],
