@@ -129,12 +129,12 @@ base-prompt.md
 
 ### Принцип
 
-Сессии субагентов не архивируются (`archiveAfterMinutes: 0`). Координатор может отправить `sessions_send` в старую сессию — субагент получает полный контекст и продолжает.
+Сессии субагентов держатся очень долго (`archiveAfterMinutes: 525600`, примерно 1 год). Координатор может отправить `sessions_send` в старую сессию — субагент получает полный контекст и продолжает.
 
 ### Конфиг (setup прописывает автоматически)
 
 ```json
-"agents.defaults.subagents.archiveAfterMinutes": 0
+"agents.defaults.subagents.archiveAfterMinutes": 525600
 ```
 
 ### INDEX.md — хранит sessionKey

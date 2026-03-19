@@ -46,57 +46,9 @@ export default {
 			}
 		})
 
-		// --------------------------------------------------
-		// 3. СЛЕШ-КОМАНДА: /research <тема>
-		// Пользователь пишет в чат: /research сравнение web frameworks 2026
-		//
-		// Плагин НЕ запускает исследование сам — он генерирует
-		// инструкцию для координатора (главного агента).
-		// Координатор сам составит brief, обсудит и запустит субагент.
-		// --------------------------------------------------
-		api.registerCommand({
-			name: "research",
-			description: "Start a deep research session. Usage: /research <topic>",
-			// acceptsArgs: true — без этого /research тема НЕ сработает,
-			// потому что по умолчанию команды не принимают аргументы
-			acceptsArgs: true,
-			// handler получает один объект ctx со всей информацией
-			handler: async (ctx: any) => {
-				// ctx.args — всё что после /research (тема исследования)
-				const args = ctx.args?.trim()
-				if (!args) {
-					return { text: "Usage: /research <topic>\nExample: /research сравнение web frameworks 2026" }
-				}
-
-				const topic = args
-
-				// Генерируем slug — короткое имя для папки и файлов
-				// "Сравнение Web Frameworks 2026" → "сравнение-web-frameworks-2026"
-				const slug = topic
-					.toLowerCase()
-					.replace(/[^a-zа-яё0-9\s-]/gi, "") // убираем спецсимволы
-					.replace(/\s+/g, "-")                // пробелы → дефисы
-					.slice(0, 60)                        // обрезаем до 60 символов
-
-				// Пути к файлам исследования
-				const researchDir = `/root/another-openclaw/research/${slug}`
-				const experienceDir = `/root/another-openclaw/experience/`
-
-				// Возвращаем текстовое сообщение — инструкцию для координатора
-				return {
-					text: [
-						`## Deep Research: ${topic}`,
-						"",
-						`**Slug:** ${slug}`,
-						`**Dir:** ${researchDir}`,
-						`**Experience:** ${experienceDir}`,
-						`**Model:** gpt-5.4, thinking: xhigh`,
-						"",
-						"Составь brief по SKILL.md, обсуди со Степаном, и запусти субагент.",
-					].join("\n"),
-				}
-			},
-		})
+		// Координатор (главный агент) сам определяет когда запускать ресёрч
+		// по SKILL.md — без отдельной слеш-команды.
+		// Пользователь просто пишет в чат "исследуй тему X".
 
 		// Лог при успешной загрузке плагина
 		api.logger.info("deep-research: plugin loaded")

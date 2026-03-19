@@ -110,12 +110,14 @@ function patchConfig(config: Record<string, any>): string[] {
 		changes.push("agents.defaults.bootstrapMaxChars: set to 40000")
 	}
 
-	// --- 3.5. Отключаем автоархивацию сессий субагентов ---
-	// Нужно для продолжения ресёрчей через sessions_send
+	// --- 3.5. Держим subagent-сессии очень долго ---
+	// OpenClaw archiveAfterMinutes должен быть > 0,
+	// поэтому ставим год хранения для продолжения ресёрчей.
+	const RESEARCH_SESSION_RETENTION_MINUTES = 60 * 24 * 365
 	if (!config.agents.defaults.subagents) config.agents.defaults.subagents = {}
-	if (config.agents.defaults.subagents.archiveAfterMinutes !== 0) {
-		config.agents.defaults.subagents.archiveAfterMinutes = 0
-		changes.push("agents.defaults.subagents.archiveAfterMinutes: set to 0")
+	if (config.agents.defaults.subagents.archiveAfterMinutes !== RESEARCH_SESSION_RETENTION_MINUTES) {
+		config.agents.defaults.subagents.archiveAfterMinutes = RESEARCH_SESSION_RETENTION_MINUTES
+		changes.push(`agents.defaults.subagents.archiveAfterMinutes: set to ${RESEARCH_SESSION_RETENTION_MINUTES}`)
 	}
 
 	// --- 4. Разрешаем субагентам использовать инструмент exec ---
