@@ -1,11 +1,21 @@
+// Стандартные модули Node.js
 import { readFileSync } from "node:fs"
 import * as path from "node:path"
 
-// Путь к папке assets плагина
+// ========================================
+// ПУТИ
+// ========================================
+
+// Путь к папке assets плагина (вычисляется от текущего файла — lib/ → корень плагина)
 const PLUGIN_DIR = path.dirname(path.dirname(new URL(import.meta.url).pathname))
+// Все markdown-блоки промпта лежат тут
 const ASSETS_DIR = `${PLUGIN_DIR}/assets`
 
-// Маппинг: ключ конфига → имя файла в assets/tools/
+// ========================================
+// МАППИНГ ИНСТРУМЕНТОВ
+// Ключ конфига → имя файла в assets/tools/
+// Каждый файл содержит документацию одного инструмента для researcher-а.
+// ========================================
 const TOOL_FILES: Record<string, string> = {
 	exa: "exa.md",
 	scrapfly: "scrapfly.md",
@@ -15,17 +25,27 @@ const TOOL_FILES: Record<string, string> = {
 	onepassword: "onepassword.md",
 }
 
-// Ключевые слова для вырезания строк из каскадов
+// ========================================
+// КЛЮЧЕВЫЕ СЛОВА ДЛЯ ФИЛЬТРАЦИИ КАСКАДОВ
+// Когда инструмент выключен — строки с этими словами
+// вырезаются из cascades.md (деревья решений).
+// Например: scrapfly выключен → убираем все строки с "ScrapFly", "web_get_page", "web_scrape"
+// ========================================
 const TOOL_CASCADE_KEYWORDS: Record<string, string[]> = {
 	exa: ["Exa", "crawling_exa", "deep_search_exa", "web_search_exa", "get_code_context_exa", "company_research_exa", "linkedin_search_exa"],
 	scrapfly: ["ScrapFly", "web_get_page", "web_scrape"],
 	brave: ["Brave"],
 	ref: ["Ref", "ref_read_url", "ref_search_documentation"],
 	"agent-browser": ["agent-browser"],
-	onepassword: [],
+	onepassword: [], // Нет в каскадах — нечего вырезать
 }
 
-// Конфиг инструментов по умолчанию (все включены)
+// ========================================
+// КОНФИГ ИНСТРУМЕНТОВ
+// Пользователь включает/выключает в openclaw.json:
+//   plugins.entries.openclaw-deep-research.config.tools.scrapfly = false
+// Все включены по умолчанию.
+// ========================================
 export interface ToolsConfig {
 	exa?: boolean
 	scrapfly?: boolean
@@ -44,7 +64,11 @@ const DEFAULT_CONFIG: Required<ToolsConfig> = {
 	onepassword: true,
 }
 
-// Читает файл, возвращает содержимое или пустую строку
+// ========================================
+// ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+// ========================================
+
+// Читает файл из assets/, возвращает содержимое или пустую строку если файл не найден
 function readAsset(filename: string): string {
 	try {
 		return readFileSync(`${ASSETS_DIR}/${filename}`, "utf-8")
@@ -53,7 +77,8 @@ function readAsset(filename: string): string {
 	}
 }
 
-// Вырезает строки из каскадов, содержащие ключевые слова выключенных инструментов
+// Вырезает строки из каскадов, содержащие ключевые слова выключенных инструментов.
+// Заголовки, пустые строки и маркеры ``` не трогаем — только строки с упоминаниями инструментов.
 function filterCascades(cascadesContent: string, disabledTools: string[]): string {
 	const keywords: string[] = []
 	for (const tool of disabledTools) {
@@ -65,22 +90,31 @@ function filterCascades(cascadesContent: string, disabledTools: string[]): strin
 	return cascadesContent
 		.split("\n")
 		.filter((line) => {
-			// Не трогаем заголовки и пустые строки
 			if (line.startsWith("#") || line.trim() === "" || line.trim() === "```") return true
-			// Убираем строки содержащие ключевые слова выключенных инструментов
 			return !keywords.some((kw) => line.includes(kw))
 		})
 		.join("\n")
 }
 
-// Собирает полный промпт researcher-а из блоков
+// ========================================
+// СБОРКА ПРОМПТА
+// Главная функция — собирает AGENTS.md для researcher-а из блоков.
+// Вызывается из commands/cli.ts при setup.
+//
+// Алгоритм:
+// 1. Читает base-prompt.md (база: кто ты, ограничения, протокол, цикл, форматы, правила)
+// 2. Для каждого включённого инструмента читает assets/tools/<name>.md
+// 3. Читает cascades.md и вырезает строки с выключенными инструментами
+// 4. Читает experience-instructions.md (всегда включён)
+// 5. Подставляет всё в плейсхолдеры {{TOOLS}}, {{CASCADES}}, {{EXPERIENCE}}
+// ========================================
 export function buildResearcherPrompt(toolsConfig?: ToolsConfig): string {
 	const config = { ...DEFAULT_CONFIG, ...toolsConfig }
 
-	// 1. Базовый промпт
+	// 1. Базовый промпт с плейсхолдерами
 	let base = readAsset("base-prompt.md")
 
-	// 2. Собираем блоки инструментов
+	// 2. Собираем блоки включённых инструментов
 	const toolSections: string[] = []
 	const disabledTools: string[] = []
 
@@ -95,16 +129,16 @@ export function buildResearcherPrompt(toolsConfig?: ToolsConfig): string {
 
 	const toolsBlock = toolSections.join("\n\n")
 
-	// 3. Каскады с фильтрацией
+	// 3. Каскады — вырезаем выключенные инструменты
 	let cascades = readAsset("cascades.md")
 	if (disabledTools.length > 0) {
 		cascades = filterCascades(cascades, disabledTools)
 	}
 
-	// 4. Experience инструкции (всегда включены)
+	// 4. Experience инструкции (всегда включены — не зависят от конфига)
 	const experience = readAsset("experience-instructions.md")
 
-	// 5. Подставляем в шаблон
+	// 5. Подставляем в плейсхолдеры
 	base = base.replace("{{TOOLS}}", toolsBlock)
 	base = base.replace("{{CASCADES}}", cascades)
 	base = base.replace("{{EXPERIENCE}}", experience)

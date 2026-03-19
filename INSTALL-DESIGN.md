@@ -32,9 +32,10 @@ openclaw deep-research setup
 ```bash
 cd ~/.openclaw/extensions/openclaw-deep-research
 git pull
+openclaw deep-research setup
 ```
 
-Всегда последняя версия из main. После обновления — рестарт Gateway.
+`setup` идемпотентен — безопасно запускать повторно. Пересобирает AGENTS.md из блоков, обновляет SKILL.md, проверяет конфиг. После — рестарт Gateway.
 
 ## Динамический промпт researcher-а
 

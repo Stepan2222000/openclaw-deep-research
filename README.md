@@ -4,24 +4,21 @@ OpenClaw plugin for autonomous deep research with sub-agents.
 
 ## What it does
 
-- **Researcher sub-agent** with full tool documentation (Exa, ScrapFly, agent-browser, Brave Search, web_fetch, Ref) — delivered via dedicated workspace
+- **Researcher sub-agent** with prompt assembled from modular markdown blocks during `setup`
 - **Coordinator skill** (SKILL.md) — instructions for the main agent on how to manage research sessions
-- **Plugin hooks** — dynamic context injection, automatic INDEX.md updates
-- **Slash commands** — `/research`, `/research-status`
-- **CLI** — `openclaw deep-research setup/status/update-prompt`
+- **Tool toggles** in plugin config — include or exclude Exa, ScrapFly, Brave, Ref, agent-browser, 1Password
+- **Slash command** — `/research`
+- **CLI** — `openclaw deep-research setup/status`
 
 ## Architecture
 
 ```
 User → Coordinator (reads SKILL.md) → sessions_spawn(agentId: "researcher")
                                            ↓
-                            Plugin hook: before_agent_start → inject date
-                            OpenClaw: loads workspace-researcher/AGENTS.md
+                     setup builds workspace-researcher/AGENTS.md from assets/*
                                            ↓
                                     Researcher sub-agent works
                                     (Exa, ScrapFly, agent-browser, etc.)
-                                           ↓
-                            Plugin hook: agent_end → update INDEX.md
 ```
 
 ## Installation
@@ -39,7 +36,7 @@ openclaw deep-research setup
 
 This will:
 - Install SKILL.md to `workspace/skills/deep-research/`
-- Create researcher workspace with AGENTS.md prompt
+- Build researcher workspace with AGENTS.md prompt
 - Patch `openclaw.json` (agents.list, allowAgents, exec)
 - Create INDEX.md if missing
 
@@ -62,29 +59,30 @@ The coordinator will:
 ## CLI Commands
 
 ```bash
-openclaw deep-research setup          # Initial setup
-openclaw deep-research status         # Check configuration
-openclaw deep-research update-prompt  # Update prompts after plugin update
+openclaw deep-research setup   # Initial setup or prompt rebuild
+openclaw deep-research status  # Check configuration
 ```
 
 ## File Structure
 
 ```
 openclaw-deep-research/
-├── index.ts              # Plugin entry: hooks, commands, CLI
+├── index.ts              # Plugin entry: command registration and debug logging
 ├── package.json
 ├── openclaw.plugin.json
 ├── tsconfig.json
 ├── assets/
-│   ├── researcher-prompt.md   # Sub-agent prompt (AGENTS.md)
-│   └── SKILL.md               # Coordinator instructions
+│   ├── base-prompt.md              # Base researcher prompt with placeholders
+│   ├── cascades.md                 # Search and extraction cascades
+│   ├── experience-instructions.md  # Experience logging instructions
+│   ├── SKILL.md                    # Coordinator instructions
+│   └── tools/                      # Per-tool prompt blocks
 ├── commands/
-│   └── cli.ts                 # setup, status, update-prompt
+│   └── cli.ts                      # setup, status
 ├── lib/
-│   ├── coordinator.ts         # Brief builder, progress reader
-│   ├── index-manager.ts       # INDEX.md CRUD
-│   └── templates.ts           # Research file templates
-└── scripts/
+│   └── prompt-builder.ts           # AGENTS.md assembly from assets
+└── .claude/
+    └── skills/                     # Local Claude/Codex skills
 ```
 
 ## Tools available to researcher

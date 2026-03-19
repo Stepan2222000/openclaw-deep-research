@@ -4,6 +4,7 @@ import * as path from "node:path"
 // homedir() возвращает домашнюю директорию: /root, /home/user, /Users/stepan и т.д.
 import { homedir } from "node:os"
 import type { OpenClawPluginApi } from "openclaw/plugin-sdk/core"
+import { buildResearcherPrompt } from "../lib/prompt-builder.ts"
 
 // ========================================
 // ПУТИ — все ключевые директории и файлы
@@ -129,24 +130,15 @@ function patchConfig(config: Record<string, any>): string[] {
 		changes.push('tools.subagents.tools.allow: added "exec"')
 	}
 
-	// --- 5. Регистрируем сам плагин в конфиге ---
-	if (!config.plugins) config.plugins = {}
-	if (!config.plugins.entries) config.plugins.entries = {}
-	if (!config.plugins.entries["openclaw-deep-research"]) {
-		config.plugins.entries["openclaw-deep-research"] = { enabled: true, config: {} }
-		changes.push("plugins.entries: added openclaw-deep-research")
-	}
-
 	return changes
 }
 
 // ========================================
 // ГЛАВНАЯ ФУНКЦИЯ — РЕГИСТРАЦИЯ CLI-КОМАНД
 // Вызывается из index.ts при загрузке плагина.
-// Регистрирует команду "deep-research" с тремя подкомандами:
+// Регистрирует команду "deep-research" с двумя подкомандами:
 //   openclaw deep-research setup
 //   openclaw deep-research status
-//   openclaw deep-research update-prompt
 // ========================================
 export function registerSetupCli(api: OpenClawPluginApi): void {
 	api.registerCli(
@@ -174,17 +166,19 @@ export function registerSetupCli(api: OpenClawPluginApi): void {
 						console.log(`  ✓ SKILL.md → ${SKILL_DIR}/`)
 					}
 
-					// Шаг 2: Создаём рабочую директорию researcher-а
-					// Промпт собирается динамически плагином через before_prompt_build хук.
-					// AGENTS.md содержит минимальную заглушку.
+					// Шаг 2: Создаём рабочую директорию researcher-а и собираем промпт
+					// Промпт собирается из блоков (base + включённые инструменты + каскады)
+					// и записывается в AGENTS.md как системный промпт субагента.
 					console.log("\nInstalling researcher workspace...")
 					if (!fs.existsSync(WORKSPACE_RESEARCHER)) {
 						fs.mkdirSync(WORKSPACE_RESEARCHER, { recursive: true })
 					}
-					const agentsMd = "# Deep Research Worker\n\nПромпт собирается динамически плагином openclaw-deep-research.\n"
-					fs.writeFileSync(`${WORKSPACE_RESEARCHER}/AGENTS.md`, agentsMd, "utf-8")
-					console.log(`  ✓ AGENTS.md → ${WORKSPACE_RESEARCHER}/`)
-					const toolsMd = "# Tools\n\nИнструменты настраиваются через конфиг плагина.\n"
+					// Читаем конфиг плагина для определения включённых инструментов
+					const pluginCfg = config.plugins?.entries?.["openclaw-deep-research"]?.config
+					const researcherPrompt = buildResearcherPrompt(pluginCfg?.tools)
+					fs.writeFileSync(`${WORKSPACE_RESEARCHER}/AGENTS.md`, researcherPrompt, "utf-8")
+					console.log(`  ✓ AGENTS.md → ${WORKSPACE_RESEARCHER}/ (${researcherPrompt.length} chars)`)
+					const toolsMd = "# Tools\n\nИнструменты описаны в AGENTS.md.\n"
 					fs.writeFileSync(`${WORKSPACE_RESEARCHER}/TOOLS.md`, toolsMd, "utf-8")
 					console.log(`  ✓ TOOLS.md → ${WORKSPACE_RESEARCHER}/`)
 
@@ -260,23 +254,6 @@ export function registerSetupCli(api: OpenClawPluginApi): void {
 					console.log("")
 				})
 
-			// --------------------------------------------------
-			// ПОДКОМАНДА: update-prompt
-			// Обновляет SKILL.md из assets плагина.
-			// Промпт researcher-а собирается динамически — обновлять не нужно,
-			// достаточно git pull и рестарт Gateway.
-			// --------------------------------------------------
-			cmd
-				.command("update-prompt")
-				.description("Update SKILL.md from plugin assets")
-				.action(async () => {
-					console.log("\nUpdating prompts...")
-					if (copyAsset("SKILL.md", `${SKILL_DIR}/SKILL.md`)) {
-						console.log(`  ✓ SKILL.md updated`)
-					}
-					console.log("  Researcher prompt собирается динамически — обновится при рестарте Gateway.")
-					console.log("")
-				})
 		},
 		// Регистрируем "deep-research" как CLI-команду OpenClaw
 		{ commands: ["deep-research"] },
