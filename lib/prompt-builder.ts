@@ -1,5 +1,5 @@
 // Стандартные модули Node.js
-import { readFileSync } from "node:fs"
+import { readFileSync, readdirSync } from "node:fs"
 import * as path from "node:path"
 
 // ========================================
@@ -106,7 +106,8 @@ function filterCascades(cascadesContent: string, disabledTools: string[]): strin
 // 2. Для каждого включённого инструмента читает assets/tools/<name>.md
 // 3. Читает cascades.md и вырезает строки с выключенными инструментами
 // 4. Читает experience-instructions.md (всегда включён)
-// 5. Подставляет всё в плейсхолдеры {{TOOLS}}, {{CASCADES}}, {{EXPERIENCE}}
+// 5. Читает все .md из assets/examples/ (примеры правильной работы)
+// 6. Подставляет всё в плейсхолдеры {{TOOLS}}, {{CASCADES}}, {{EXPERIENCE}}, {{EXAMPLES}}
 // ========================================
 export function buildResearcherPrompt(toolsConfig?: ToolsConfig): string {
 	const config = { ...DEFAULT_CONFIG, ...toolsConfig }
@@ -138,10 +139,25 @@ export function buildResearcherPrompt(toolsConfig?: ToolsConfig): string {
 	// 4. Experience инструкции (всегда включены — не зависят от конфига)
 	const experience = readAsset("experience-instructions.md")
 
-	// 5. Подставляем в плейсхолдеры
+	// 5. Примеры правильной работы — читаем все .md из assets/examples/
+	// Новые примеры добавляются просто кладя файл в папку — подхватываются автоматически
+	let examples = ""
+	try {
+		const examplesDir = `${ASSETS_DIR}/examples`
+		const files = readdirSync(examplesDir).filter((f) => f.endsWith(".md")).sort()
+		const sections = files.map((f) => readAsset(`examples/${f}`)).filter(Boolean)
+		if (sections.length > 0) {
+			examples = `## Примеры правильной работы\n\n${sections.join("\n\n")}`
+		}
+	} catch {
+		// Папка examples/ не существует — пропускаем
+	}
+
+	// 6. Подставляем в плейсхолдеры
 	base = base.replace("{{TOOLS}}", toolsBlock)
 	base = base.replace("{{CASCADES}}", cascades)
 	base = base.replace("{{EXPERIENCE}}", experience)
+	base = base.replace("{{EXAMPLES}}", examples)
 
 	return base
 }
