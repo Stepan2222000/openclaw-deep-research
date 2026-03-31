@@ -65,6 +65,17 @@ const DEFAULT_CONFIG: Required<ToolsConfig> = {
 }
 
 // ========================================
+// НАТИВНЫЕ TOOLS OPENCLAW
+// Некоторые инструменты — нативные tools OpenClaw (не через mcporter/exec).
+// Их нужно добавить в tools.subagents.tools.allow чтобы researcher мог их использовать.
+// Маппинг: ключ конфига → массив нативных tool names.
+// web_fetch добавляется всегда (не привязан к toggle).
+// ========================================
+export const NATIVE_TOOLS: Record<string, string[]> = {
+	brave: ["web_search"],
+}
+
+// ========================================
 // ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
 // ========================================
 
@@ -144,8 +155,8 @@ export function buildResearcherPrompt(toolsConfig?: ToolsConfig): string {
 	let examples = ""
 	try {
 		const examplesDir = `${ASSETS_DIR}/examples`
-		const files = readdirSync(examplesDir).filter((f) => f.endsWith(".md")).sort()
-		const sections = files.map((f) => readAsset(`examples/${f}`)).filter(Boolean)
+		const files = readdirSync(examplesDir).filter((f: string) => f.endsWith(".md")).sort()
+		const sections = files.map((f: string) => readAsset(`examples/${f}`)).filter(Boolean)
 		if (sections.length > 0) {
 			examples = `## Примеры правильной работы\n\n${sections.join("\n\n")}`
 		}

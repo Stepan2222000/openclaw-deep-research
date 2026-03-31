@@ -4,7 +4,7 @@ import * as path from "node:path"
 // homedir() возвращает домашнюю директорию: /root, /home/user, /Users/stepan и т.д.
 import { homedir } from "node:os"
 import type { OpenClawPluginApi } from "openclaw/plugin-sdk/core"
-import { buildResearcherPrompt } from "../lib/prompt-builder.ts"
+import { buildResearcherPrompt, NATIVE_TOOLS } from "../lib/prompt-builder.ts"
 
 // ========================================
 // ПУТИ — все ключевые директории и файлы
@@ -120,17 +120,34 @@ function patchConfig(config: Record<string, any>): string[] {
 		changes.push(`agents.defaults.subagents.archiveAfterMinutes: set to ${RESEARCH_SESSION_RETENTION_MINUTES}`)
 	}
 
-	// --- 4. Разрешаем субагентам использовать инструмент exec ---
-	// exec — выполнение shell-команд. Researcher-у он нужен для работы.
+	// --- 4. Разрешаем субагентам использовать нужные инструменты ---
+	// exec — всегда (для mcporter, agent-browser)
+	// web_fetch — всегда (нативный HTTP GET)
+	// web_search — только если brave включён в конфиге плагина
 	if (!config.tools) config.tools = {}
 	if (!config.tools.subagents) config.tools.subagents = {}
 	if (!config.tools.subagents.tools) config.tools.subagents.tools = {}
 	const allowedTools: string[] = config.tools.subagents.tools.allow || []
-	if (!allowedTools.includes("exec")) {
-		allowedTools.push("exec")
-		config.tools.subagents.tools.allow = allowedTools
-		changes.push('tools.subagents.tools.allow: added "exec"')
+
+	// Базовые инструменты — всегда нужны
+	const requiredTools = ["exec", "web_fetch"]
+
+	// Нативные инструменты из конфига плагина (зависят от включённых tool toggles)
+	const toolsCfg = config.plugins?.entries?.["openclaw-deep-research"]?.config?.tools || {}
+	for (const [toolId, nativeNames] of Object.entries(NATIVE_TOOLS)) {
+		// Если tool не выключен явно (по умолчанию все включены)
+		if (toolsCfg[toolId] !== false) {
+			requiredTools.push(...nativeNames)
+		}
 	}
+
+	for (const tool of requiredTools) {
+		if (!allowedTools.includes(tool)) {
+			allowedTools.push(tool)
+			changes.push(`tools.subagents.tools.allow: added "${tool}"`)
+		}
+	}
+	config.tools.subagents.tools.allow = allowedTools
 
 	return changes
 }
@@ -182,6 +199,20 @@ export function registerSetupCli(api: OpenClawPluginApi): void {
 					const toolsMd = "# Tools\n\nИнструменты описаны в AGENTS.md.\n"
 					fs.writeFileSync(`${WORKSPACE_RESEARCHER}/TOOLS.md`, toolsMd, "utf-8")
 					console.log(`  ✓ TOOLS.md → ${WORKSPACE_RESEARCHER}/`)
+
+					// Шаг 2.5: Копируем mcporter.json из main workspace
+					// mcporter ищет config/mcporter.json относительно cwd.
+					// Без него researcher не видит MCP-серверы (Exa, ScrapFly, Ref).
+					const mainMcporter = `${OPENCLAW_DIR}/workspace/config/mcporter.json`
+					const researcherMcporter = `${WORKSPACE_RESEARCHER}/config/mcporter.json`
+					if (fs.existsSync(mainMcporter)) {
+						const mcporterDir = path.dirname(researcherMcporter)
+						if (!fs.existsSync(mcporterDir)) fs.mkdirSync(mcporterDir, { recursive: true })
+						fs.copyFileSync(mainMcporter, researcherMcporter)
+						console.log(`  ✓ mcporter.json → ${WORKSPACE_RESEARCHER}/config/`)
+					} else {
+						console.log(`  ⚠ mcporter.json not found at ${mainMcporter} — MCP tools (Exa, ScrapFly, Ref) won't work`)
+					}
 
 					// Шаг 3: Записываем патченный конфиг одним проходом
 					if (changes.length > 0) {
