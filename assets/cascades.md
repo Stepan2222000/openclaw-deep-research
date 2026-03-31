@@ -34,6 +34,9 @@
 │       │       └── Нужен простой интерактив (закрыть popup, scroll, "Load more")?
 │       │           └── ScrapFly web_scrape + js_scenario
 │       │
+│       ├── Сайт блокирует по серверному IP
+│       │   └── ScrapFly web_scrape + country + proxy_pool: "public_residential_pool"
+│       │
 │       └── Всё провалилось → agent-browser
 │
 ├── ИЗВЕСТНО ЗАЩИЩЁННЫЙ САЙТ → сразу ScrapFly (пропустить crawling_exa)
