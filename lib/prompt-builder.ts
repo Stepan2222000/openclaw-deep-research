@@ -32,7 +32,7 @@ const TOOL_FILES: Record<string, string> = {
 // Например: scrapfly выключен → убираем все строки с "ScrapFly", "web_get_page", "web_scrape"
 // ========================================
 const TOOL_CASCADE_KEYWORDS: Record<string, string[]> = {
-	exa: ["Exa", "crawling_exa", "deep_search_exa", "web_search_exa", "get_code_context_exa", "company_research_exa", "linkedin_search_exa"],
+	exa: ["Exa", "crawling_exa", "web_search_exa", "web_search_advanced_exa", "get_code_context_exa"],
 	scrapfly: ["ScrapFly", "web_get_page", "web_scrape"],
 	brave: ["Brave"],
 	ref: ["Ref", "ref_read_url", "ref_search_documentation"],

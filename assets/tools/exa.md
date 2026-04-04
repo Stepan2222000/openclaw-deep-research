@@ -1,4 +1,4 @@
-### Exa — семантический поиск, crawling, deep research
+### Exa — семантический поиск, crawling
 
 Все инструменты вызываются через `exec` + `mcporter`.
 
@@ -12,81 +12,80 @@ mcporter call 'exa.web_search_exa(query: "AI research agents best practices", nu
 
 Параметры:
 - `query` — поисковый запрос (работает на EN и RU)
-- `numResults` — количество (default 8)
+- `numResults` — количество (1-100, default 8)
 - `type` — `"auto"` (default) или `"fast"` (быстрый)
-- `livecrawl` — `"fallback"` (default) или `"preferred"` (приоритет живому краулу)
-- `contextMaxCharacters` — лимит символов контекста (default 10000)
+- `freshness` — фильтр свежести: `"24h"`, `"week"`, `"month"`, `"year"`, `"any"`
+- `includeDomains` — массив доменов для ограничения поиска, например `["arxiv.org", "github.com"]`
 
-#### deep_search_exa — глубокий поиск
+#### web_search_advanced_exa — расширенный поиск с фильтрами
 
-Автоматически расширяет запрос (создаёт вариации), ищет параллельно, ранжирует и генерирует summary для каждого результата. Лучше web_search_exa для сложных и широких тем.
+Полный контроль: категории, даты, домены, текстовые фильтры, summary. Заменяет deprecated `deep_search_exa`, `company_research_exa`, `linkedin_search_exa`.
 
 ```bash
-mcporter call 'exa.deep_search_exa(query: "current state of AI agents for research automation", numResults: 5)'
+mcporter call 'exa.web_search_advanced_exa(query: "transformer architecture", numResults: 5, category: "research paper", includeDomains: ["arxiv.org"])'
 ```
 
-Параметры:
-- `query` — основной запрос
-- `numResults` — количество результатов
-- `additionalQueries` — массив дополнительных вариаций запроса (опционально, иначе Exa сгенерирует сам)
-- `category` — `company`, `research paper`, `people`
-- `livecrawl` — `"fallback"` (default) или `"preferred"`
+Основные параметры:
+- `query` — поисковый запрос
+- `numResults` — количество (1-100, default 10)
+- `type` — `"auto"` (default), `"fast"`, `"neural"` (глубокий семантический)
+- `category` — фильтр категории: `"company"`, `"research paper"`, `"news"`, `"pdf"`, `"github"`, `"personal site"`, `"people"`, `"financial report"`
+- `includeDomains` / `excludeDomains` — фильтр по доменам
+
+Фильтры по датам:
+- `startPublishedDate` / `endPublishedDate` — дата публикации (ISO 8601: `"2026-01-01"`)
+- `startCrawlDate` / `endCrawlDate` — дата краула
+
+Текстовые фильтры:
+- `includeText` — включить только результаты, содержащие ВСЕ указанные строки
+- `excludeText` — исключить результаты, содержащие ЛЮБУЮ из строк
+
+Дополнительно:
+- `additionalQueries` — массив вариаций запроса для расширения охвата
+- `enableSummary` — генерация summary для каждого результата (boolean)
+- `summaryQuery` — фокус-запрос для summary
+- `userLocation` — ISO код страны для гео-таргетинга (`"US"`, `"RU"`, `"DE"`)
+
+Примеры использования:
+```bash
+# Поиск компании (замена company_research_exa)
+mcporter call 'exa.web_search_advanced_exa(query: "Anthropic", numResults: 3, category: "company")'
+
+# Поиск людей (замена linkedin_search_exa)
+mcporter call 'exa.web_search_advanced_exa(query: "CTO Anthropic", numResults: 5, category: "people")'
+
+# Свежие новости за последний месяц
+mcporter call 'exa.web_search_advanced_exa(query: "AI regulation EU", numResults: 5, category: "news", startPublishedDate: "2026-03-01")'
+
+# Глубокий поиск с вариациями (замена deep_search_exa)
+mcporter call 'exa.web_search_advanced_exa(query: "AI agents research automation", numResults: 5, type: "neural", additionalQueries: ["autonomous research tools", "LLM-powered investigation"])'
+```
 
 #### get_code_context_exa — поиск кода и API документации
 
 Источники: GitHub, Stack Overflow, docs.
 
 ```bash
-mcporter call 'exa.get_code_context_exa(query: "playwright page.goto examples", tokensNum: 3000)'
+mcporter call 'exa.get_code_context_exa(query: "playwright page.goto examples", numResults: 5)'
 ```
 
 Параметры:
 - `query` — запрос по коду/API
-- `tokensNum` — объём контекста (1000-50000, default 5000)
-
-#### company_research_exa — исследование компаний
-
-```bash
-mcporter call 'exa.company_research_exa(companyName: "Anthropic", numResults: 3)'
-```
-
-#### linkedin_search_exa — поиск людей и компаний в LinkedIn
-
-```bash
-mcporter call 'exa.linkedin_search_exa(query: "CTO Anthropic", numResults: 5)'
-```
+- `numResults` — количество результатов (1-20, default 8)
 
 #### crawling_exa — PRIMARY extraction
 
 Извлекает чистый контент страницы (обработанный, без навигации и мусора). Работает на большинстве популярных сайтов.
 
 ```bash
-mcporter call 'exa.crawling_exa(url: "https://example.com/page", maxCharacters: 5000)'
+mcporter call 'exa.crawling_exa(urls: ["https://example.com/page"], maxCharacters: 5000)'
 ```
 
 Параметры:
-- `url` — целевой URL
-- `maxCharacters` — лимит символов (default 3000)
+- `urls` — массив URL (можно несколько за один вызов)
+- `maxCharacters` — лимит символов на страницу (default 3000)
+- `maxAgeHours` — максимальный возраст кеша в часах (0 = всегда свежий)
+- `subpages` — количество подстраниц для дополнительного краула
+- `subpageTarget` — ключевые слова для приоритизации подстраниц
 
-Если вернул устаревший контент — повтори поиск или используй другой инструмент. Если URL не в индексе Exa — переходи к следующему уровню.
-
-#### deep_researcher_start — делегирование исследования
-
-Запускает автономный AI-агент Exa, который сам ищет, читает страницы и пишет отчёт. Работает параллельно. Использовать когда тема слишком широкая и хочешь делегировать изучение подтемы.
-
-**Правило:** не использовать для основных вопросов brief — только для вспомогательных подтем.
-
-```bash
-mcporter call 'exa.deep_researcher_start(instructions: "Detailed research about topic X")'
-```
-
-Параметры:
-- `instructions` — детальное описание задачи
-- `model` — `"exa-research-fast"`, `"exa-research"` (default), `"exa-research-pro"`
-- `outputSchema` — JSON schema для структурированного вывода
-
-#### deep_researcher_check
-
-```bash
-mcporter call 'exa.deep_researcher_check(researchId: "ID_из_start")'
-```
+Если вернул устаревший контент — повтори с `maxAgeHours: 0`. Если URL не в индексе Exa — переходи к следующему уровню.

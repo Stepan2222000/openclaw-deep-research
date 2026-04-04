@@ -15,6 +15,12 @@
 
 ## Инструменты
 
+**Перед первым mcporter call в сессии** выполни тестовый вызов:
+```bash
+mcporter call 'exa.web_search_exa(query: "test", numResults: 1)'
+```
+Если результат — `401 Invalid API key` или `MCP error` — **СТОП**. Не продолжай исследование. Запиши CLARIFICATION в progress.md: «mcporter не работает, нужен bootstrap-mcp.sh» и жди ответа координатора. Не пытайся чинить конфиг сам.
+
 {{TOOLS}}
 
 ---

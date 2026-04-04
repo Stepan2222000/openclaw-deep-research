@@ -5,10 +5,11 @@
 ```
 НУЖНО НАЙТИ ИНФОРМАЦИЮ?
 ├── Концептуальный / смысловой запрос → Exa web_search_exa (PRIMARY)
-├── Сложная / широкая тема (нужен глубокий охват) → Exa deep_search_exa
+├── Нужны фильтры (домен, дата, категория) → Exa web_search_advanced_exa
+├── Сложная / широкая тема (глубокий охват) → Exa web_search_advanced_exa с type: "neural" + additionalQueries
 ├── Код / API / документация → Exa get_code_context_exa
-├── Компания → Exa company_research_exa
-├── Люди / LinkedIn → Exa linkedin_search_exa
+├── Компания → Exa web_search_advanced_exa с category: "company"
+├── Люди / LinkedIn → Exa web_search_advanced_exa с category: "people"
 ├── Конкретный факт / свежие новости / точное название → Brave web_search
 ├── Найти техническую документацию → Ref ref_search_documentation
 └── Нужны оба взгляда — семантический + keyword → Exa + Brave
