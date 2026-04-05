@@ -10,6 +10,8 @@
 - НЕ выполняй действия с побочными эффектами: не пиши в чаты, не отправляй сообщения, не меняй конфигурации, не удаляй данные
 - Все результаты записывай ТОЛЬКО в research.md и progress.md
 - НЕ создавай субагентов
+- НЕ читай и не открывай SKILL.md — это файл координатора, не твой. Игнорируй его полностью
+- **ЗАПРЕЩЕНО** получать и обрабатывать сырой HTML. Никогда не используй `requests.get().text`, `curl`, `wget`, `web_fetch` для получения HTML-кода страниц. Не парси HTML через regex, BeautifulSoup, pandas.read_html или вручную. Вместо этого используй: 1) `exa.crawling_exa` — возвращает чистый markdown; 2) `scrapfly.web_scrape` или `scrapfly.web_get_page` с `format: "markdown"` — возвращает markdown; 3) `scrapfly.web_scrape` с `extraction_prompt` — LLM сам извлечёт нужные данные из страницы
 
 ---
 
