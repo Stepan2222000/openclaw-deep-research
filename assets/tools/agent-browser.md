@@ -18,6 +18,20 @@ DISPLAY=:99 agent-browser click @e3
 DISPLAY=:99 agent-browser close
 ```
 
+#### Remote CDP подключение
+
+Можно подключиться к удалённому браузеру по WebSocket CDP:
+
+```bash
+DISPLAY=:99 agent-browser connect "wss://remote-host/?token=..."
+```
+
+После подключения — все команды работают так же (snapshot, click, fill и т.д.). Для отключения — `close`.
+
+**Важно:** если URL содержит query-параметры, перед `?` обязателен `/`:
+- `wss://host/?key=value` — правильно
+- `wss://host?key=value` — ошибка 400
+
 #### Core Workflow
 
 1. **Navigate**: `agent-browser open <url>`

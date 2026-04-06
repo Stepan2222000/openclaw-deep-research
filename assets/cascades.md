@@ -38,7 +38,10 @@
 │       ├── Сайт блокирует по серверному IP
 │       │   └── ScrapFly web_scrape + country + proxy_pool: "public_residential_pool"
 │       │
-│       └── Всё провалилось → agent-browser
+│       ├── Сильная anti-bot защита (обычные прокси не помогают)
+│       │   └── Remote антидетект-браузер (SCRAPFLY_BROWSER_URL через agent-browser)
+│       │
+│       └── Всё провалилось → agent-browser (локальный)
 │
 ├── ИЗВЕСТНО ЗАЩИЩЁННЫЙ САЙТ → сразу ScrapFly (пропустить crawling_exa)
 ├── НУЖНЫ СТРУКТУРИРОВАННЫЕ ДАННЫЕ → ScrapFly web_scrape + extraction_prompt

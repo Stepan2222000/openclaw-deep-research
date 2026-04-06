@@ -22,6 +22,7 @@ const TOOL_FILES: Record<string, string> = {
 	brave: "brave.md",
 	ref: "ref.md",
 	"agent-browser": "agent-browser.md",
+	"scrapfly-browser": "scrapfly-browser.md",
 	onepassword: "onepassword.md",
 }
 
@@ -37,6 +38,7 @@ const TOOL_CASCADE_KEYWORDS: Record<string, string[]> = {
 	brave: ["Brave"],
 	ref: ["Ref", "ref_read_url", "ref_search_documentation"],
 	"agent-browser": ["agent-browser"],
+	"scrapfly-browser": ["ScrapFly Browser", "SCRAPFLY_BROWSER_URL"],
 	onepassword: [], // Нет в каскадах — нечего вырезать
 }
 
@@ -52,6 +54,7 @@ export interface ToolsConfig {
 	brave?: boolean
 	ref?: boolean
 	"agent-browser"?: boolean
+	"scrapfly-browser"?: boolean
 	onepassword?: boolean
 }
 
@@ -61,6 +64,7 @@ const DEFAULT_CONFIG: Required<ToolsConfig> = {
 	brave: true,
 	ref: true,
 	"agent-browser": true,
+	"scrapfly-browser": true,
 	onepassword: true,
 }
 
