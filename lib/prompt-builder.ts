@@ -24,6 +24,7 @@ const TOOL_FILES: Record<string, string> = {
 	"agent-browser": "agent-browser.md",
 	"scrapfly-browser": "scrapfly-browser.md",
 	onepassword: "onepassword.md",
+	subagents: "subagents.md",
 }
 
 // ========================================
@@ -40,6 +41,7 @@ const TOOL_CASCADE_KEYWORDS: Record<string, string[]> = {
 	"agent-browser": ["agent-browser"],
 	"scrapfly-browser": ["ScrapFly Browser", "SCRAPFLY_BROWSER_URL"],
 	onepassword: [], // Нет в каскадах — нечего вырезать
+	subagents: ["субагент", "subagent", "codex exec"],
 }
 
 // ========================================
@@ -56,6 +58,7 @@ export interface ToolsConfig {
 	"agent-browser"?: boolean
 	"scrapfly-browser"?: boolean
 	onepassword?: boolean
+	subagents?: boolean
 }
 
 const DEFAULT_CONFIG: Required<ToolsConfig> = {
@@ -66,6 +69,7 @@ const DEFAULT_CONFIG: Required<ToolsConfig> = {
 	"agent-browser": true,
 	"scrapfly-browser": true,
 	onepassword: true,
+	subagents: true,
 }
 
 // ========================================

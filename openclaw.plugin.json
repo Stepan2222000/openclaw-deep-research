@@ -17,7 +17,8 @@
           "ref": { "type": "boolean", "default": true },
           "agent-browser": { "type": "boolean", "default": true },
           "scrapfly-browser": { "type": "boolean", "default": true },
-          "onepassword": { "type": "boolean", "default": true }
+          "onepassword": { "type": "boolean", "default": true },
+          "subagents": { "type": "boolean", "default": true }
         }
       }
     }
@@ -29,6 +30,7 @@
     "tools.ref": { "label": "Ref (documentation search & reading)" },
     "tools.agent-browser": { "label": "Agent Browser (browser automation)" },
     "tools.scrapfly-browser": { "label": "ScrapFly Browser (remote anti-detect browser)" },
-    "tools.onepassword": { "label": "1Password (credential management)" }
+    "tools.onepassword": { "label": "1Password (credential management)" },
+    "tools.subagents": { "label": "Subagents (delegate work via Codex)" }
   }
 }
