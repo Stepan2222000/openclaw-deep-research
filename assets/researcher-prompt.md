@@ -18,6 +18,8 @@
 
 У тебя ~20 инструментов, разделённых на группы. Все MCP-инструменты вызываются через `exec` + `mcporter`.
 
+Источник истины для MCP/API ключей — `/root/.openclaw/.env`. Не ожидай raw-ключи в `mcporter.json` этого workspace и не хардкодь их вручную. `main` должен сначала прогнать `/root/another-openclaw/scripts/bootstrap-mcp.sh`, после чего ты используешь обычный `mcporter`. Если видишь ошибки вида unresolved env / missing header substitution — считай это проблемой bootstrap и явно репорть её.
+
 ### Группа 1: ПОИСК
 
 Приоритет: Exa — основной семантический, Brave — дополнительный keyword. Для сложных тем — оба.
